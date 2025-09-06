@@ -43,11 +43,18 @@ export default function DashboardLayout({ children }) {
       <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950">
         <div className="text-white text-xl mb-4">Loading dashboard...</div>
         <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        {!loading && !isAuthenticated && (
+        {!loading  && (
           <div className="text-red-400 mt-4">
-            Authentication failed. Redirecting to login...
+            loading timeout , redirecting...
           </div>
         )}
+        {
+          !isAuthenticated && (
+            <div className="text-red-400 mt-4">
+              You are not authorized to view this page.
+            </div>
+          )}
+        
       </div>
     );
   }

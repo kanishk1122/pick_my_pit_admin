@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 .env
+src/redux/slices/authSlice.js
+.next

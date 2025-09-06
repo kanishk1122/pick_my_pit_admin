@@ -1,22 +1,23 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useDispatch, useSelector } from "react-redux";
 import { Card } from "primereact/card";
 import { InputText } from "primereact/inputtext";
 import { Password } from "primereact/password";
 import { Button } from "primereact/button";
 import { Message } from "primereact/message";
-import CryptoJS from "crypto-js";
-import { setCookie } from "@/utils/cookieUtils";
-import { useAuth } from "@/context/AuthContext";
+import { loginUser } from "@/redux/slices/authSlice";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+
+  const { isAuthenticated, loading, error } = useSelector(
+    (state) => state.auth
+  );
 
   useEffect(() => {
     // If already authenticated, redirect to dashboard
@@ -28,67 +29,22 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
+
+    if (!email || !password) {
+      return;
+    }
+
+    if (password.length > 20) {
+      return;
+    }
 
     try {
-      console.log("Attempting login for:", email);
-      
-      // Validate locally first
-      if (!email || !password) {
-        throw new Error("Email and password are required");
-      }
-
-      if (password.length > 20) {
-        throw new Error("Password must be less than or equal to 20 characters");
-      }
-
-      // Safe API call with proper URL construction
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-      const baseUrl = API_URL.endsWith("/api") ? API_URL.slice(0, -4) : API_URL;
-
-      const encryptedPassword = CryptoJS.AES.encrypt(
-        password,
-        process.env.NEXT_PUBLIC_CRYPTO_KEY || "fallback_key"
-      ).toString();
-
-      console.log("Making API request to:", `${baseUrl}/api/admin/login`);
-      
-      const response = await fetch(`${baseUrl}/api/admin/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password: encryptedPassword }),
-      });
-
-      const data = await response.json();
-      console.log("Login response received:", { success: response.ok, status: response.status });
-
-      if (!response.ok) {
-        throw new Error(data.msg || "Login failed");
-      }
-
-      // Verify admin role
-      if (!data.userdata || data.userdata.role !== "admin") {
-        throw new Error("Unauthorized access");
-      }
-
-      console.log("Login successful, setting cookies...");
-      
-      // Store in cookies
-      setCookie("adminToken", data.userdata.sessionToken, 7);
-      setCookie("adminUser", data.userdata, 7);
-
-      console.log("Redirecting to dashboard...");
-      // Navigate to dashboard
+      await dispatch(loginUser({ email, password })).unwrap();
+      console.log("Login successful, redirecting to dashboard...");
       router.push("/dashboard");
-      
     } catch (err) {
       console.error("Login error:", err);
-      setError(err.message || "An unexpected error occurred");
-    } finally {
-      setLoading(false);
+      // Error is handled by the slice
     }
   };
 

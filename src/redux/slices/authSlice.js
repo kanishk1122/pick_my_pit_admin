@@ -1,39 +1,47 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import CryptoJS from "crypto-js";
 import { fetchData } from "../api";
 import { setCookie, removeCookie, getCookie } from "../../utils/cookieUtils";
 
 // Async thunks
-export const login = createAsyncThunk(
-  "auth/login",
-  async (credentials, { rejectWithValue, dispatch }) => {
+export const loginUser = createAsyncThunk(
+  "auth/loginUser",
+  async ({ email, password }, { rejectWithValue, dispatch }) => {
     try {
-      const response = await fetchData("/auth/login", {
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      const baseUrl = API_URL.endsWith("/api") ? API_URL.slice(0, -4) : API_URL;
+
+      const encryptedPassword = CryptoJS.AES.encrypt(
+        password,
+        process.env.NEXT_PUBLIC_CRYPTO_KEY || "fallback_key"
+      ).toString();
+
+      const response = await fetch(`${baseUrl}/api/auth/admin/login`, {
         method: "POST",
-        data: credentials,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password: encryptedPassword }),
       });
 
-      // Validate response structure
-      if (!response.user || !response.token) {
-        console.error("Invalid login response structure:", response);
-        return rejectWithValue({
-          message: "Invalid login response from server",
-        });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed");
       }
 
-      // Ensure user has required fields
-      if (!response.user.role) {
-        console.error("User data missing role field:", response.user);
-        return rejectWithValue({ message: "User data is incomplete" });
+      // Verify admin role
+      if (!data.data.admin || data.data.admin.role !== "admin") {
+        throw new Error("Unauthorized access");
       }
 
       // Save user data and token to cookies with longer expiration
-      setCookie("adminToken", response.token, 30);
-      setCookie("adminUser", response.user, 30);
+      setCookie("adminToken", data.token, 30);
+      setCookie("adminUser", data.data.admin, 30);
 
-      // Explicitly set the user right away
-      dispatch(setUser(response.user));
-
-      return response;
+      // Return the admin data with token
+      return { ...data.data.admin, token: data.token };
     } catch (error) {
       console.error("Login error:", error);
       return rejectWithValue(
@@ -43,23 +51,22 @@ export const login = createAsyncThunk(
   }
 );
 
-export const logout = createAsyncThunk(
-  "auth/logout",
+export const logoutUser = createAsyncThunk(
+  "auth/logoutUser",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetchData("/auth/logout", {
-        method: "POST",
-      });
+      // Clear local storage, cookies, etc.
+      localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminUser");
+      // Clear cookies if needed
+      document.cookie =
+        "adminToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie =
+        "adminUser=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
-      // Remove cookies on logout
-      removeCookie("adminToken");
-      removeCookie("adminUser");
-
-      return response;
+      return true;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data || { message: "Logout failed" }
-      );
+      return rejectWithValue(error.message);
     }
   }
 );
@@ -105,6 +112,7 @@ export const verifyLoginFromCookies = () => (dispatch) => {
 
 const initialState = {
   user: null,
+  token: null,
   isAuthenticated: false,
   status: "idle",
   error: null,
@@ -132,41 +140,42 @@ const authSlice = createSlice({
     setLoading: (state, action) => {
       state.loading = action.payload;
     },
+    setError: (state, action) => {
+      state.error = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
       // Login
-      .addCase(login.pending, (state) => {
-        state.status = "loading";
+      .addCase(loginUser.pending, (state) => {
+        state.loading = true;
         state.error = null;
       })
-      .addCase(login.fulfilled, (state, action) => {
-        if (action.payload.user) {
-          state.status = "succeeded";
-          state.isAuthenticated = true;
-          state.user = action.payload.user;
-          state.loading = false; // Explicitly set loading to false
-          console.log("Login successful, state updated:", {
-            isAuthenticated: state.isAuthenticated,
-            user: state.user,
-          });
-        } else {
-          state.status = "failed";
-          state.error = "Invalid response from server";
-          state.isAuthenticated = false;
-          state.user = null;
-        }
+      .addCase(loginUser.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+        state.token = action.payload.token;
+        state.isAuthenticated = true;
+        state.error = null;
+
+        // Store in localStorage
+        localStorage.setItem("adminToken", action.payload.token);
+        localStorage.setItem("adminUser", JSON.stringify(action.payload));
       })
-      .addCase(login.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload?.message || "Login failed";
+      .addCase(loginUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error =
+          action.payload?.message || action.payload || "Login failed";
+        state.isAuthenticated = false;
       })
 
       // Logout
-      .addCase(logout.fulfilled, (state) => {
+      .addCase(logoutUser.fulfilled, (state) => {
         state.user = null;
+        state.token = null;
         state.isAuthenticated = false;
-        state.status = "idle";
+        state.loading = false;
+        state.error = null;
       })
 
       // Get Current User
@@ -185,7 +194,7 @@ const authSlice = createSlice({
   },
 });
 
-export const { resetAuthStatus, setUser, clearUser, setLoading } =
+export const { resetAuthStatus, setUser, clearUser, setLoading, setError } =
   authSlice.actions;
 
 export default authSlice.reducer;
