@@ -38,11 +38,13 @@ export default function SpeciesManager() {
   const toast = useRef(null);
   const [iconPreview, setIconPreview] = useState(null);
 
+  // Update form data structure to match backend
   const [formData, setFormData] = useState({
     name: "",
     displayName: "",
     description: "",
     icon: "",
+    active: true, // Add active field
   });
 
   useEffect(() => {
@@ -61,14 +63,16 @@ export default function SpeciesManager() {
   }, [speciesError]);
 
   // Form handlers
+  // Update showDialog to handle backend data structure
   const showDialog = (mode, species = null) => {
     setEditMode(mode === "edit");
     if (species) {
       setFormData({
-        name: species.name,
-        displayName: species.displayName,
+        name: species.name || "",
+        displayName: species.displayName || "",
         description: species.description || "",
         icon: species.icon || "",
+        active: species.active !== undefined ? species.active : true,
       });
       setIconPreview(species.icon || null);
       setSelectedSpecies(species);
@@ -78,6 +82,7 @@ export default function SpeciesManager() {
         displayName: "",
         description: "",
         icon: "",
+        active: true,
       });
       setIconPreview(null);
     }
@@ -173,7 +178,8 @@ export default function SpeciesManager() {
     });
   };
 
-  // DataTable templates with modern dark theme styling
+  // DataTable templates with modern dark theme
+  // Update status template to use correct field
   const statusTemplate = (rowData) => {
     return (
       <div className="flex items-center justify-center">
@@ -190,6 +196,74 @@ export default function SpeciesManager() {
     );
   };
 
+  // Update name template to include slug and popularity
+  const nameTemplate = (rowData) => {
+    return (
+      <div className="space-y-2">
+        <div className="font-semibold text-zinc-100 text-base">
+          {rowData.displayName || rowData.name}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-zinc-400 font-mono bg-zinc-800/50 px-2 py-1 rounded-md border border-zinc-700/50">
+            {rowData.name}
+          </div>
+          {rowData.slug && (
+            <div className="text-xs text-zinc-500 font-mono bg-zinc-800/30 px-2 py-1 rounded-md border border-zinc-600/30">
+              /{rowData.slug}
+            </div>
+          )}
+        </div>
+        {rowData.popularity !== undefined && (
+          <div className="flex items-center gap-1 text-xs text-zinc-400">
+            <i className="pi pi-star text-amber-400"></i>
+            <span>Popularity: {rowData.popularity}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Add created date template
+  const createdDateTemplate = (rowData) => {
+    const createdAt = rowData.createdAt;
+    if (!createdAt) return <span className="text-zinc-500">N/A</span>;
+
+    const date = new Date(createdAt);
+    const formattedDate = date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+
+    return <div className="text-sm text-zinc-300">{formattedDate}</div>;
+  };
+
+  // Update description template to include more info
+  const descriptionTemplate = (rowData) => {
+    const description = rowData.description || "No description available";
+    const truncated =
+      description.length > 80
+        ? description.substring(0, 80) + "..."
+        : description;
+
+    return (
+      <div className="space-y-1">
+        <div
+          className="text-zinc-300 leading-relaxed text-sm"
+          title={description}
+        >
+          {truncated}
+        </div>
+        {rowData.createdAt && (
+          <div className="text-xs text-zinc-500">
+            Created: {new Date(rowData.createdAt).toLocaleDateString()}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Update icon template
   const iconTemplate = (rowData) => {
     return (
       <div className="flex items-center justify-center">
@@ -197,7 +271,7 @@ export default function SpeciesManager() {
           <div className="relative group">
             <img
               src={rowData.icon}
-              alt={rowData.displayName}
+              alt={rowData.displayName || rowData.name}
               className="w-12 h-12 rounded-xl object-cover border-2 border-zinc-700 shadow-lg transition-all duration-200 group-hover:scale-110 group-hover:border-indigo-500/50"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 rounded-xl transition-all duration-200"></div>
@@ -207,36 +281,6 @@ export default function SpeciesManager() {
             <i className="pi pi-image text-zinc-400 text-lg"></i>
           </div>
         )}
-      </div>
-    );
-  };
-
-  const nameTemplate = (rowData) => {
-    return (
-      <div className="space-y-2">
-        <div className="font-semibold text-zinc-100 text-base">
-          {rowData.displayName}
-        </div>
-        <div className="text-xs text-zinc-400 font-mono bg-zinc-800/50 px-2 py-1 rounded-md inline-block border border-zinc-700/50">
-          {rowData.name}
-        </div>
-      </div>
-    );
-  };
-
-  const descriptionTemplate = (rowData) => {
-    const description = rowData.description || "No description available";
-    const truncated =
-      description.length > 80
-        ? description.substring(0, 80) + "..."
-        : description;
-
-    return (
-      <div
-        className="text-zinc-300 leading-relaxed text-sm"
-        title={description}
-      >
-        {truncated}
       </div>
     );
   };
@@ -296,6 +340,40 @@ export default function SpeciesManager() {
     </div>
   );
 
+  // Update stats cards to use backend data
+  const statsCards = [
+    {
+      title: "Total Species",
+      value: species.length,
+      icon: "list",
+      color: "indigo",
+    },
+    {
+      title: "Active Species",
+      value: species.filter((s) => s.active).length,
+      icon: "check-circle",
+      color: "emerald",
+    },
+    {
+      title: "Inactive Species",
+      value: species.filter((s) => !s.active).length,
+      icon: "times-circle",
+      color: "red",
+    },
+    {
+      title: "Average Popularity",
+      value:
+        species.length > 0
+          ? Math.round(
+              species.reduce((sum, s) => sum + (s.popularity || 0), 0) /
+                species.length
+            )
+          : 0,
+      icon: "star",
+      color: "amber",
+    },
+  ];
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-950">
@@ -316,7 +394,7 @@ export default function SpeciesManager() {
             <Toast ref={toast} position="bottom-right" />
             <ConfirmDialog />
 
-            {/* Header Section - Reduced Height */}
+            {/* Header Section */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 w-full py-4">
               <div className="space-y-3">
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
@@ -334,50 +412,33 @@ export default function SpeciesManager() {
               />
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-              <div className="bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-xl backdrop-blur-sm hover:bg-zinc-800/30 transition-all duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-zinc-400">Total Species</p>
-                    <p className="text-3xl font-bold text-zinc-100">
-                      {species.length}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center border border-indigo-500/20">
-                    <i className="pi pi-list text-indigo-400 text-xl"></i>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-xl backdrop-blur-sm hover:bg-zinc-800/30 transition-all duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-zinc-400">Active Species</p>
-                    <p className="text-3xl font-bold text-emerald-400">
-                      {species.filter((s) => s.active).length}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
-                    <i className="pi pi-check-circle text-emerald-400 text-xl"></i>
+            {/* Enhanced Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 w-full">
+              {statsCards.map((stat, index) => (
+                <div
+                  key={index}
+                  className="bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-xl backdrop-blur-sm hover:bg-zinc-800/30 transition-all duration-200"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-zinc-400">{stat.title}</p>
+                      <p className="text-3xl font-bold text-zinc-100">
+                        {stat.value}
+                      </p>
+                    </div>
+                    <div
+                      className={`w-12 h-12 bg-${stat.color}-500/10 rounded-xl flex items-center justify-center border border-${stat.color}-500/20`}
+                    >
+                      <i
+                        className={`pi pi-${stat.icon} text-${stat.color}-400 text-xl`}
+                      ></i>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-xl backdrop-blur-sm hover:bg-zinc-800/30 transition-all duration-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-zinc-400">Inactive Species</p>
-                    <p className="text-3xl font-bold text-red-400">
-                      {species.filter((s) => !s.active).length}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-red-500/10 rounded-xl flex items-center justify-center border border-red-500/20">
-                    <i className="pi pi-times-circle text-red-400 text-xl"></i>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
 
-            {/* Data Table - Full Width */}
+            {/* Data Table */}
             <div className="w-full overflow-x-auto">
               {speciesStatus === "loading" ? (
                 <div className="flex justify-center items-center p-12">
@@ -440,7 +501,7 @@ export default function SpeciesManager() {
                       }
                       body={nameTemplate}
                       sortable
-                      style={{ width: "25%" }}
+                      style={{ width: "30%" }}
                       bodyStyle={{ padding: "1.5rem 1rem" }}
                     />
                     <Column
@@ -452,8 +513,31 @@ export default function SpeciesManager() {
                         </div>
                       }
                       body={descriptionTemplate}
-                      style={{ width: "40%" }}
+                      style={{ width: "35%" }}
                       bodyStyle={{ padding: "1.5rem 1rem" }}
+                    />
+                    <Column
+                      field="popularity"
+                      header={
+                        <div className="flex items-center justify-center gap-2">
+                          <i className="pi pi-star text-amber-400"></i>
+                          <span>Popularity</span>
+                        </div>
+                      }
+                      body={(rowData) => (
+                        <div className="flex items-center justify-center">
+                          <span className="text-zinc-300 font-medium">
+                            {rowData.popularity || 0}
+                          </span>
+                        </div>
+                      )}
+                      sortable
+                      style={{ width: "10%" }}
+                      headerStyle={{ textAlign: "center" }}
+                      bodyStyle={{
+                        textAlign: "center",
+                        padding: "1.5rem 1rem",
+                      }}
                     />
                     <Column
                       field="active"
@@ -465,7 +549,7 @@ export default function SpeciesManager() {
                       }
                       body={statusTemplate}
                       sortable
-                      style={{ width: "15%" }}
+                      style={{ width: "10%" }}
                       headerStyle={{ textAlign: "center" }}
                       bodyStyle={{
                         textAlign: "center",
@@ -842,22 +926,6 @@ export default function SpeciesManager() {
           .species-datatable-theme .p-datatable-tbody > tr > td {
             padding: 1rem 0.5rem !important;
           }
-        }
-
-        /* Enhanced empty message styling */
-        .species-datatable-theme .p-datatable-emptymessage > td {
-          border: none !important;
-          background: transparent !important;
-          padding: 0 !important;
-        }
-
-        .species-datatable-theme .p-datatable-tbody-empty {
-          background: transparent !important;
-        }
-
-        /* Hide paginator when no data */
-        .species-datatable-theme:has(.p-datatable-emptymessage) .p-paginator {
-          display: none !important;
         }
       `}</style>
     </div>

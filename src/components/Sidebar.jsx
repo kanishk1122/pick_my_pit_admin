@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
+import { useDispatch, useSelector } from "react-redux";
+import { logoutUser } from "@/redux/slices/authSlice";
 
 const navItems = [
   {
@@ -122,10 +123,33 @@ const navItems = [
 
 const Sidebar = () => {
   const pathname = usePathname();
-  const { logout, user } = useAuth();
+  const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
 
   const handleLogout = () => {
-    logout();
+    dispatch(logoutUser());
+  };
+
+  // Get user display name
+  const getUserDisplayName = () => {
+    if (!user) return "Administrator";
+    if (user.firstname && user.lastname) {
+      return `${user.firstname} ${user.lastname}`;
+    }
+    if (user.firstname) return user.firstname;
+    if (user.email) return user.email.split("@")[0];
+    return "Administrator";
+  };
+
+  // Get user initials
+  const getUserInitials = () => {
+    if (!user) return "AD";
+    if (user.firstname && user.lastname) {
+      return `${user.firstname[0]}${user.lastname[0]}`.toUpperCase();
+    }
+    if (user.firstname) return user.firstname[0].toUpperCase();
+    if (user.email) return user.email[0].toUpperCase();
+    return "AD";
   };
 
   return (
@@ -189,20 +213,14 @@ const Sidebar = () => {
       <div className="p-4 border-t border-zinc-800/50">
         <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-800/50 backdrop-blur-sm hover:bg-zinc-800/80 transition-all duration-200 cursor-pointer group">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-zinc-700 to-zinc-600 flex items-center justify-center text-white font-medium">
-            {user?.name
-              ? user.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
-              : "AD"}
+            {getUserInitials()}
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-medium text-zinc-200 truncate group-hover:text-white transition-colors">
-              {user?.name || user?.email || "Administrator"}
+              {getUserDisplayName()}
             </h3>
             <p className="text-xs text-zinc-500 truncate group-hover:text-zinc-400 transition-colors">
-              Administrator
+              {user?.role === "admin" ? "Administrator" : user?.role || "User"}
             </p>
           </div>
           <button className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700/50 transition-all duration-200 border border-zinc-700/50 hover:border-zinc-600">

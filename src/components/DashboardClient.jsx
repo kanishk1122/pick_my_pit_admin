@@ -1,15 +1,16 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { LineChart, DoughnutChart } from "./Charts.jsx";
 import StatsCard from "./StatsCard";
 import BlogsList from "./BlogsList";
 import DonationStats from "./DonationStats";
 import Sidebar from "./Sidebar";
-import { useAuth } from "@/context/AuthContext";
+import { verifyLoginFromCookies } from "@/redux/slices/authSlice";
 
 export default function DashboardClient() {
-  const { user, isAuthenticated, loading } = useAuth();
+  const dispatch = useDispatch();
+  const { user, isAuthenticated, loading } = useSelector((state) => state.auth);
   const [stats, setStats] = useState({
     totalPets: 0,
     availablePets: 0,
@@ -18,7 +19,12 @@ export default function DashboardClient() {
   });
 
   useEffect(() => {
-    // Here you would fetch your dashboard statistics
+    // Verify authentication on component mount
+    dispatch(verifyLoginFromCookies());
+  }, [dispatch]);
+
+  useEffect(() => {
+    // Here you would fetch your dashboard statistics from backend
     // For now, using placeholder data
     setStats({
       totalPets: 120,
@@ -52,7 +58,12 @@ export default function DashboardClient() {
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-sm text-zinc-400">
-              Logged in as: <span className="text-zinc-200">{user?.email}</span>
+              Logged in as:{" "}
+              <span className="text-zinc-200">
+                {user?.firstname && user?.lastname
+                  ? `${user.firstname} ${user.lastname}`
+                  : user?.email || "Administrator"}
+              </span>
             </div>
           </div>
         </header>
@@ -64,7 +75,7 @@ export default function DashboardClient() {
                   Dashboard Overview
                 </h1>
                 <p className="text-zinc-400 mt-1">
-                  Welcome back, {user?.name || user?.username || "Admin"}!
+                  Welcome back, {user?.firstname || user?.email || "Admin"}!
                   Here's your overview.
                 </p>
               </div>

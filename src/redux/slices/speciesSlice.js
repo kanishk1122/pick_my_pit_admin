@@ -6,7 +6,7 @@ export const fetchAllSpecies = createAsyncThunk(
   "species/fetchAll",
   async (_, { rejectWithValue }) => {
     try {
-      return await fetchData("/species/all");
+      return await fetchData("/api/species");
     } catch (error) {
       return rejectWithValue(
         error.response?.data || { message: "Failed to fetch species" }
@@ -32,7 +32,7 @@ export const addSpecies = createAsyncThunk(
   "species/add",
   async (speciesData, { rejectWithValue }) => {
     try {
-      return await fetchData("/species/add", {
+      return await fetchData("/api/species", {
         method: "POST",
         data: speciesData,
       });
@@ -48,7 +48,7 @@ export const updateSpecies = createAsyncThunk(
   "species/update",
   async ({ id, data }, { rejectWithValue }) => {
     try {
-      return await fetchData(`/species/update/${id}`, {
+      return await fetchData(`/api/species/update/${id}`, {
         method: "PUT",
         data,
       });
@@ -64,7 +64,7 @@ export const toggleSpeciesStatus = createAsyncThunk(
   "species/toggleStatus",
   async (id, { rejectWithValue }) => {
     try {
-      return await fetchData(`/species/toggle-status/${id}`, {
+      return await fetchData(`/api/species/toggle-status/${id}`, {
         method: "PUT",
       });
     } catch (error) {
@@ -79,7 +79,7 @@ export const deleteSpecies = createAsyncThunk(
   "species/delete",
   async (id, { rejectWithValue }) => {
     try {
-      return await fetchData(`/species/delete/${id}`, {
+      return await fetchData(`/api/species/delete/${id}`, {
         method: "DELETE",
       });
     } catch (error) {
@@ -114,7 +114,7 @@ const speciesSlice = createSlice({
       })
       .addCase(fetchAllSpecies.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.items = action.payload.species;
+        state.items = action.payload.data; // Updated to match backend response structure
       })
       .addCase(fetchAllSpecies.rejected, (state, action) => {
         state.status = "failed";
@@ -127,7 +127,7 @@ const speciesSlice = createSlice({
       })
       .addCase(fetchActiveSpecies.fulfilled, (state, action) => {
         state.status = "succeeded";
-        state.activeItems = action.payload.species;
+        state.activeItems = action.payload.data; // Updated to match backend response structure
       })
       .addCase(fetchActiveSpecies.rejected, (state, action) => {
         state.status = "failed";
@@ -136,16 +136,16 @@ const speciesSlice = createSlice({
 
       // Add Species
       .addCase(addSpecies.fulfilled, (state, action) => {
-        state.items.push(action.payload.species);
-        if (action.payload.species.active) {
-          state.activeItems.push(action.payload.species);
+        state.items.push(action.payload.data); // Updated to match backend response structure
+        if (action.payload.data.active) {
+          state.activeItems.push(action.payload.data);
         }
         state.status = "succeeded";
       })
 
       // Update Species
       .addCase(updateSpecies.fulfilled, (state, action) => {
-        const updatedSpecies = action.payload.species;
+        const updatedSpecies = action.payload.data; // Updated to match backend response structure
         // Update in items array
         const itemIndex = state.items.findIndex(
           (item) => item._id === updatedSpecies._id
