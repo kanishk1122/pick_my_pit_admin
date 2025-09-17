@@ -1,7 +1,10 @@
 "use client";
 import { configureStore } from "@reduxjs/toolkit";
+
 import authReducer from "./slices/authSlice";
 import speciesReducer from "./slices/speciesSlice";
+import dashboardReducer from "./slices/dashboardSlice";
+import postReducer from "./slices/postSlice";
 
 // Create a function to create the store so we can properly handle SSR
 export const makeStore = () => {
@@ -9,6 +12,8 @@ export const makeStore = () => {
     reducer: {
       auth: authReducer,
       species: speciesReducer,
+      dashboard: dashboardReducer,
+      posts: postReducer,
     },
     // Add middleware to handle serialization issues with SSR
     middleware: (getDefaultMiddleware) =>
@@ -22,4 +27,3 @@ export const makeStore = () => {
 
 // Create the store
 export const store = makeStore();
-

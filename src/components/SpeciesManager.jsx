@@ -263,19 +263,33 @@ export default function SpeciesManager() {
     );
   };
 
-  // Update icon template
+  // Update icon template to handle both emoji and image icons
   const iconTemplate = (rowData) => {
+    const icon = rowData.icon;
+
+    // Check if it's an emoji (not a URL)
+    const isEmoji =
+      icon && !icon.startsWith("http") && !icon.startsWith("data:");
+
     return (
       <div className="flex items-center justify-center">
-        {rowData.icon ? (
-          <div className="relative group">
-            <img
-              src={rowData.icon}
-              alt={rowData.displayName || rowData.name}
-              className="w-12 h-12 rounded-xl object-cover border-2 border-zinc-700 shadow-lg transition-all duration-200 group-hover:scale-110 group-hover:border-indigo-500/50"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 rounded-xl transition-all duration-200"></div>
-          </div>
+        {icon ? (
+          isEmoji ? (
+            // Display emoji
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-700 flex items-center justify-center border-2 border-zinc-600 shadow-lg text-2xl">
+              {icon}
+            </div>
+          ) : (
+            // Display image
+            <div className="relative group">
+              <img
+                src={icon}
+                alt={rowData.displayName || rowData.name}
+                className="w-12 h-12 rounded-xl object-cover border-2 border-zinc-700 shadow-lg transition-all duration-200 group-hover:scale-110 group-hover:border-indigo-500/50"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 rounded-xl transition-all duration-200"></div>
+            </div>
+          )
         ) : (
           <div className="w-12 h-12 bg-gradient-to-br from-zinc-800 to-zinc-700 rounded-xl flex items-center justify-center border-2 border-zinc-600 shadow-lg">
             <i className="pi pi-image text-zinc-400 text-lg"></i>
@@ -672,18 +686,56 @@ export default function SpeciesManager() {
                   <label className="block text-sm font-semibold text-zinc-200">
                     Species Icon
                   </label>
+
+                  {/* Emoji Input */}
+                  <div className="space-y-2">
+                    <label className="text-xs text-zinc-400">
+                      Emoji Icon (optional)
+                    </label>
+                    <InputText
+                      value={
+                        formData.icon &&
+                        !formData.icon.startsWith("http") &&
+                        !formData.icon.startsWith("data:")
+                          ? formData.icon
+                          : ""
+                      }
+                      onChange={(e) =>
+                        setFormData({ ...formData, icon: e.target.value })
+                      }
+                      className="w-full p-3 bg-zinc-800/50 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                      placeholder="E.g. 🦜, 🐈, 🐕"
+                      maxLength={10}
+                    />
+                    <p className="text-xs text-zinc-500">
+                      Enter an emoji or upload an image below
+                    </p>
+                  </div>
+
+                  {/* Image Upload */}
                   <div className="flex items-start gap-6">
                     <div className="flex-shrink-0">
-                      <div className="w-24 h-24 border-2 border-dashed border-zinc-600 rounded-xl overflow-hidden bg-zinc-800/30">
+                      <div className="w-24 h-24 border-2 border-dashed border-zinc-600 rounded-xl overflow-hidden bg-zinc-800/30 flex items-center justify-center">
                         {iconPreview ? (
-                          <img
-                            src={iconPreview}
-                            alt="Icon Preview"
-                            className="w-full h-full object-cover"
-                          />
+                          formData.icon &&
+                          !formData.icon.startsWith("http") &&
+                          !formData.icon.startsWith("data:") ? (
+                            // Display emoji preview
+                            <span className="text-4xl">{formData.icon}</span>
+                          ) : (
+                            // Display image preview
+                            <img
+                              src={iconPreview}
+                              alt="Icon Preview"
+                              className="w-full h-full object-cover"
+                            />
+                          )
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center">
+                          <div className="text-center">
                             <i className="pi pi-image text-zinc-500 text-2xl"></i>
+                            <p className="text-xs text-zinc-500 mt-1">
+                              No icon
+                            </p>
                           </div>
                         )}
                       </div>
