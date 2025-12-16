@@ -9,9 +9,6 @@ export default function DashboardLayout({ children }) {
   const { user, loading, isAuthenticated } = useAuth();
   const router = useRouter();
 
-  if (loading || !isAuthenticated) {
-    return <LoadingScreen />;
-  }
 
   return (
     <div className="flex min-h-screen bg-zinc-950">

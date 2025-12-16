@@ -25,21 +25,23 @@ export function AuthProvider({ children }) {
     init();
   }, [dispatch]);
 
-  const logout = async () => {
+
+
+  // if (!initialized) {
+  //   return (
+  //     <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-900">
+  //       <div className="text-white text-xl mb-4">
+  //         Checking authentication...
+  //       </div>
+  //       <div className="w-14 h-14 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+  //     </div>
+  //   );
+  // }
+
+    const logout = async () => {
     await dispatch(logoutUser());
     // Do NOT redirect here — middleware will automatically redirect on next route load
   };
-
-  if (!initialized) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-900">
-        <div className="text-white text-xl mb-4">
-          Checking authentication...
-        </div>
-        <div className="w-14 h-14 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
 
   return (
     <AuthContext.Provider

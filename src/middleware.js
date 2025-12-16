@@ -36,7 +36,6 @@ export async function middleware(request) {
       });
 
       const data = await res.json();
-      console.log("Middleware verify response:", data);
       if (res.ok && data?.success) {
         isAuthenticated = true;
       }

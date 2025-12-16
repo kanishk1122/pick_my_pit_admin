@@ -1,17 +1,37 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 
-// Async thunk to fetch approval posts
+// --- Async Thunk: Fetch Posts with Backend Filtering ---
 export const fetchApprovalPosts = createAsyncThunk(
   "posts/fetchApprovalPosts",
-  async (_, { rejectWithValue }) => {
+  // 1. Accept 'filters' argument (default to empty object)
+  async (filters = {}, { rejectWithValue }) => {
     try {
       const API_URL =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const baseUrl = API_URL.endsWith("/api") ? API_URL.slice(0, -4) : API_URL;
-      const response = await axios.get(`${baseUrl}/api/posts/pending-approvals`,{
+
+      // 2. Build Query Parameters Object
+      const params = {};
+      
+      // Only add parameters if they are present and not "all"
+      if (filters.search) {
+        params.search = filters.search;
+      }
+      if (filters.status && filters.status !== "all") {
+        params.status = filters.status;
+      }
+      if (filters.species && filters.species !== "all") {
+        params.species = filters.species;
+      }
+
+      // 3. Send Request with Params
+      // Axios will automatically convert params to ?search=...&status=...
+      const response = await axios.get(`${baseUrl}/api/posts/pending-approvals`, {
+        params: params, 
         withCredentials: true,
       });
+
       return response.data.data || [];
     } catch (error) {
       return rejectWithValue(
@@ -21,7 +41,7 @@ export const fetchApprovalPosts = createAsyncThunk(
   }
 );
 
-// Async thunk to approve a listing
+// --- Async Thunk: Approve Listing ---
 export const approveListing = createAsyncThunk(
   "posts/approveListing",
   async (postId, { rejectWithValue }) => {
@@ -39,7 +59,7 @@ export const approveListing = createAsyncThunk(
   }
 );
 
-// Async thunk to reject a listing
+// --- Async Thunk: Reject Listing ---
 export const rejectListing = createAsyncThunk(
   "posts/rejectListing",
   async (postId, { rejectWithValue }) => {
@@ -69,24 +89,29 @@ const postSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
+      // --- Fetch Posts Cases ---
       .addCase(fetchApprovalPosts.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(fetchApprovalPosts.fulfilled, (state, action) => {
         state.loading = false;
-        state.approvalPosts = action.payload;
+        // The payload is now the filtered list directly from the backend
+        state.approvalPosts = action.payload; 
       })
       .addCase(fetchApprovalPosts.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || "Failed to fetch posts";
       })
+
+      // --- Approve Cases ---
       .addCase(approveListing.pending, (state) => {
         state.actionLoading = true;
         state.actionError = null;
       })
       .addCase(approveListing.fulfilled, (state, action) => {
         state.actionLoading = false;
+        // Optimistic UI Update: Update status locally so we don't need to refetch
         state.approvalPosts = state.approvalPosts.map((post) =>
           post.id === action.payload.postId
             ? { ...post, status: "approved" }
@@ -98,12 +123,15 @@ const postSlice = createSlice({
         state.actionError =
           action.payload?.message || "Failed to approve listing";
       })
+
+      // --- Reject Cases ---
       .addCase(rejectListing.pending, (state) => {
         state.actionLoading = true;
         state.actionError = null;
       })
       .addCase(rejectListing.fulfilled, (state, action) => {
         state.actionLoading = false;
+        // Optimistic UI Update
         state.approvalPosts = state.approvalPosts.map((post) =>
           post.id === action.payload.postId
             ? { ...post, status: "rejected" }

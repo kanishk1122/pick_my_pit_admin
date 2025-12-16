@@ -38,6 +38,7 @@
     "react-dom": "^19.0.0",
     "react-redux": "^9.0.4",
     "react-toastify": "^11.0.3",
+    "redux-persist": "^6.0.0",
     "remixicon": "^4.6.0",
     "xlsx": "^0.18.5"
   },
