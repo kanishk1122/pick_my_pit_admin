@@ -1,21 +1,62 @@
 import { NextResponse } from "next/server";
 
-export function middleware(request) {
+export async function middleware(request) {
   const { pathname } = request.nextUrl;
-  const isAuthenticated = request.cookies.get("adminToken");
 
-  // Public paths that don't require authentication
-  const publicPaths = ["/login"];
+  const adminToken = request.cookies.get("adminToken")?.value || "";
 
-  // Check if the path is public
-  const isPublicPath = publicPaths.includes(pathname);
+  const isPublicPath = pathname === "/login";
 
-  // Redirect to login if not authenticated and trying to access protected route
-  if (!isAuthenticated && !isPublicPath) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  var ligalcookies = { token: true, adminToken: true, isAuthenticated: true };
+
+  let isAuthenticated = false;
+  const cookies = request.cookies || {};
+
+  function checkIllegalCookies() {
+    for (const [name, value] of Object.entries(cookies)) {
+      if (!ligalcookies.hasOwnProperty(name)) {
+        // delete cookie properly
+        request.cookies.delete(name);
+      }
+    }
+  }
+  try {
+    checkIllegalCookies();
+  } catch (error) {
+    console.error("Error checking illegal cookies:", error);
   }
 
-  // Redirect to dashboard if authenticated and trying to access login
+  if (adminToken) {
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/admin/verify", {
+        method: "GET",
+        headers: {
+          Cookie: adminToken, // MUST forward manually
+        },
+      });
+
+      const data = await res.json();
+      console.log("Middleware verify response:", data);
+      if (res.ok && data?.success) {
+        isAuthenticated = true;
+      }
+    } catch (err) {
+      console.error("Middleware verify error:", err);
+    }
+  }
+
+  function logoutUser() {
+    const response = NextResponse.next();
+    response.cookies.delete("adminToken");
+    return response;
+  }
+
+  if (!isAuthenticated && !isPublicPath) {
+    const response = NextResponse.redirect(new URL("/login", request.url));
+    response.cookies.delete("adminToken");
+    return response;
+  }
+
   if (isAuthenticated && isPublicPath) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }

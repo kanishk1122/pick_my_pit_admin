@@ -26,10 +26,7 @@ export default function DashboardClient() {
     error,
   } = useSelector((state) => state.dashboard);
 
-  useEffect(() => {
-    // Verify authentication on component mount
-    dispatch(verifyLoginFromCookies());
-  }, [dispatch]);
+
 
   useEffect(() => {
     // Fetch real dashboard data when authenticated

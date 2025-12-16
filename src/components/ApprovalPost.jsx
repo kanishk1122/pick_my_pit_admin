@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchApprovalPosts } from "../redux/slices/postSlice";
+import {
+  fetchApprovalPosts,
+  approveListing,
+  rejectListing,
+} from "../redux/slices/postSlice";
 
 const PetIcon = () => (
   <svg
@@ -58,13 +62,12 @@ const ApprovalPost = () => {
     dispatch(fetchApprovalPosts());
   }, [dispatch]);
 
-  // Local approve/reject handlers (for UI only, not backend)
-  // You may want to implement backend update logic here
+  // Approve/Reject handlers using slice thunks
   const handleApprove = (postId) => {
-    // ...existing code...
+    dispatch(approveListing(postId));
   };
   const handleReject = (postId) => {
-    // ...existing code...
+    dispatch(rejectListing(postId));
   };
 
   return (

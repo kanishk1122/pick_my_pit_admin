@@ -2,6 +2,8 @@ import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ReduxProvider } from "@/redux/provider";
 import { AuthProvider } from "@/context/AuthContext";
+import { Suspense } from "react";
+import { LoadingScreen } from "@/components/LoadingScreen";
 import "./globals.css";
 import "primereact/resources/themes/lara-dark-indigo/theme.css";
 import "primereact/resources/primereact.min.css";
@@ -23,7 +25,9 @@ export default function RootLayout({ children }) {
       >
         <ReduxProvider>
           <ThemeProvider>
-            <AuthProvider>{children}</AuthProvider>
+            <Suspense fallback={<LoadingScreen />}>
+              <AuthProvider>{children}</AuthProvider>
+            </Suspense>
           </ThemeProvider>
         </ReduxProvider>
       </body>

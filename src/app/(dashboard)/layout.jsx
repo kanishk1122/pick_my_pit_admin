@@ -1,62 +1,16 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 export default function DashboardLayout({ children }) {
   const { user, loading, isAuthenticated } = useAuth();
   const router = useRouter();
-  const [showLoading, setShowLoading] = useState(true);
 
-  // Add a timeout to prevent infinite loading
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowLoading(false);
-    }, 8000); // 8 second fallback
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Check authentication status for dashboard access
-  useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      console.log(
-        "Not authenticated in dashboard layout, redirecting to login"
-      );
-      router.push("/login");
-    }
-  }, [loading, isAuthenticated, router]);
-
-  // Debug loading state
-  useEffect(() => {
-    console.log("Dashboard layout loading state:", {
-      loading,
-      showLoading,
-      isAuthenticated,
-    });
-  }, [loading, showLoading, isAuthenticated]);
-
-  // Show loading state only for a reasonable time
-  if ((loading && showLoading) || !isAuthenticated) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950">
-        <div className="text-white text-xl mb-4">Loading dashboard...</div>
-        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        {!loading  && (
-          <div className="text-red-400 mt-4">
-            loading timeout , redirecting...
-          </div>
-        )}
-        {
-          !isAuthenticated && (
-            <div className="text-red-400 mt-4">
-              You are not authorized to view this page.
-            </div>
-          )}
-        
-      </div>
-    );
+  if (loading || !isAuthenticated) {
+    return <LoadingScreen />;
   }
 
   return (
