@@ -31,7 +31,7 @@ const persistConfig = {
   storage,
   // Whitelist: Only these slices will be saved to localStorage.
   // We include 'posts' (to fix your reload issue) and 'auth' (to keep users logged in).
-  whitelist: ["auth", "posts"], 
+  whitelist: ["auth"], 
 };
 
 // 3. Wrap the root reducer with persistReducer

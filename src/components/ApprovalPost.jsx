@@ -1,483 +1,358 @@
-"use client";
+import { useEffect, useState, useMemo, memo, useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import Image from "next/image";
+import {
+  fetchApprovalPosts,
+  approveListing,
+  rejectListing,
+} from "../redux/slices/postSlice";
 
-import { useState } from "react";
-import AddPetModal from "./AddPetModal";
-
-// --- Mock Data ---
-const initialPets = [
-  {
-    id: 1,
-    name: "Max",
-    species: "Dog",
-    breed: "Golden Retriever",
-    age: 3,
-    gender: "Male",
-    status: "available",
-    image:
-      "[https://images.unsplash.com/photo-1552053831-71594a27632d?w=500](https://images.unsplash.com/photo-1552053831-71594a27632d?w=500)",
-    description:
-      "Max is a friendly and energetic Golden Retriever who loves to play fetch. He is great with kids and other dogs.",
-    medicalHistory: "Vaccinated, Neutered",
-    owner: null,
-  },
-  {
-    id: 2,
-    name: "Luna",
-    species: "Cat",
-    breed: "Persian",
-    age: 2,
-    gender: "Female",
-    status: "adopted",
-    image:
-      "[https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=500](https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=500)",
-    description:
-      "Luna is a calm and affectionate Persian cat. She enjoys lounging in sunny spots and being brushed.",
-    medicalHistory: "Vaccinated, Spayed",
-    owner: "Sarah Miller",
-  },
-  {
-    id: 3,
-    name: "Rocky",
-    species: "Dog",
-    breed: "German Shepherd",
-    age: 4,
-    gender: "Male",
-    status: "available",
-    image:
-      "[https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?w=500](https://www.google.com/search?q=https://images.unsplash.com/photo-1589941013453-ec89f33b5e95%3Fw%3D500)",
-    description:
-      "Rocky is a loyal and protective companion. He is well-trained and loves outdoor activities.",
-    medicalHistory: "Vaccinated, Neutered",
-    owner: null,
-  },
-];
-
-// --- Sub-components for Icons ---
-
-const GridIcon = () => (
-  <svg
-    className="w-5 h-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-      d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-    />
+// --- Icons ---
+const PetIcon = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-8 0c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-8 0c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z" />
   </svg>
 );
 
-const ListIcon = () => (
-  <svg
-    className="w-5 h-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-      d="M4 6h16M4 12h16M4 18h16"
-    />
+const PriceTagIcon = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
   </svg>
 );
 
-const EyeIcon = () => (
-  <svg
-    className="w-4 h-4"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-    <circle cx="12" cy="12" r="3"></circle>
+const PhoneIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
   </svg>
 );
 
-const TrashIcon = () => (
-  <svg
-    className="w-4 h-4"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="3 6 5 6 21 6"></polyline>
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+const RefreshIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
   </svg>
 );
 
-const EditIcon = () => (
-  <svg
-    className="w-4 h-4"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+const SearchIcon = () => (
+  <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
   </svg>
 );
 
-// --- Details Modal Component ---
+const CheckIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+  </svg>
+);
 
-const PetDetailsModal = ({ pet, isOpen, onClose }) => {
-  if (!isOpen || !pet) return null;
+const XIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
+const ImageIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+);
+
+// --- Helper Components ---
+
+const StatusBadge = ({ status }) => {
+  const styles = {
+    pending: "bg-amber-500/10 text-amber-500 ring-amber-500/20",
+    approved: "bg-emerald-500/10 text-emerald-500 ring-emerald-500/20",
+    rejected: "bg-rose-500/10 text-rose-500 ring-rose-500/20",
+  };
+
+  const defaultStyle = "bg-zinc-500/10 text-zinc-400 ring-zinc-500/20";
+  const currentStyle = styles[status] || defaultStyle;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 bg-black/40 hover:bg-black/60 rounded-full text-white transition-colors z-10"
-        >
-          <svg
-            className="w-5 h-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset ${currentStyle}`}>
+      {status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown"}
+    </span>
+  );
+};
+
+// --- Sub-Component: Post Card ---
+const PostCard = memo(({ post, onApprove, onReject }) => {
+  const [showAllImages, setShowAllImages] = useState(false);
+
+  // Use the first image as cover, or a placeholder
+  const coverImage = post.images?.[0] || "/placeholder-pet.png";
+  const additionalImages = post.images?.slice(1) || [];
+
+  return (
+    <div className="group bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden hover:border-zinc-700 transition-all duration-300 shadow-lg flex flex-col h-full">
+      
+      {/* --- Card Header / Cover Image --- */}
+      <div className="relative h-48 w-full bg-zinc-800 overflow-hidden">
+        {/* Main Image */}
+        <Image
+          src={coverImage}
+          alt={post.title}
+          width={400}
+          height={300}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        
+        {/* Overlay Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-t from-zinc-900/90 via-transparent to-transparent" />
+
+        {/* Top Badges */}
+        <div className="absolute top-3 left-3 flex gap-2">
+          <StatusBadge status={post.status} />
+        </div>
+
+        {/* Price Tag (Bottom Left of Image) */}
+        <div className="absolute bottom-3 left-3">
+           <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg text-white text-sm font-semibold shadow-sm">
+             <PriceTagIcon />
+             <span>{post.type === "free" ? "Free Adoption" : `₹${post.amount}`}</span>
+           </div>
+        </div>
+
+        {/* More Images Indicator */}
+        {additionalImages.length > 0 && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); setShowAllImages(!showAllImages); }}
+            className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 px-2 py-1.5 rounded-lg text-xs text-white flex items-center gap-1 transition-colors"
           >
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+            <ImageIcon />
+            <span>+{additionalImages.length}</span>
+          </button>
+        )}
+      </div>
 
-        <div className="flex flex-col md:flex-row h-full">
-          <div className="w-full md:w-1/2 h-64 md:h-auto relative">
-            <img
-              src={pet.image}
-              alt={pet.name}
-              className="absolute inset-0 w-full h-full object-cover"
-            />
+      {/* --- Expandable Image Gallery --- */}
+      {showAllImages && additionalImages.length > 0 && (
+        <div className="grid grid-cols-3 gap-1 bg-zinc-950 p-1 border-b border-zinc-800 animate-in slide-in-from-top-2">
+          {additionalImages.map((img, i) => (
+            <div key={i} className="relative h-20 w-full rounded overflow-hidden">
+               <Image src={img} alt="Gallery" fill className="object-cover" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* --- Content Body --- */}
+      <div className="p-5 flex-1 flex flex-col">
+        
+        {/* Title & Breed */}
+        <div className="mb-4">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-lg font-bold text-zinc-100 line-clamp-1" title={post.title}>
+              {post.title}
+            </h3>
           </div>
-          <div className="w-full md:w-1/2 p-6 md:p-8 space-y-6 overflow-y-auto max-h-[60vh] md:max-h-[80vh]">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-3xl font-bold text-white">{pet.name}</h2>
-                <span
-                  className={`px-2 py-1 text-xs rounded-full font-medium border ${
-                    pet.status === "available"
-                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                      : pet.status === "adopted"
-                      ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                      : "bg-zinc-500/10 text-zinc-400 border-zinc-500/20"
-                  }`}
-                >
-                  {pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}
-                </span>
-              </div>
-              <p className="text-zinc-400 text-lg">
-                {pet.breed} • {pet.age} years old
-              </p>
+          <div className="flex items-center gap-2 mt-1 text-sm text-zinc-400">
+            <span className="flex items-center gap-1">
+               <PetIcon /> {post.species}
+            </span>
+            <span className="w-1 h-1 rounded-full bg-zinc-600" />
+            <span>{post.breed}</span>
+            {post.formattedAge && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-zinc-600" />
+                <span>{post.formattedAge}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Description */}
+        <p className="text-sm text-zinc-500 line-clamp-2 mb-4 flex-1">
+          {post.discription}
+        </p>
+
+        {/* Owner Info */}
+        <div className="flex items-center justify-between pt-4 border-t border-zinc-800/50 mt-auto">
+          <div className="flex items-center gap-3">
+            <div className="relative w-8 h-8 rounded-full overflow-hidden border border-zinc-700">
+              <Image
+                src={post.owner?.userpic || "/placeholder-user.jpg"}
+                alt="Owner"
+                fill
+                className="object-cover"
+              />
             </div>
-
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium text-zinc-500 uppercase tracking-wider mb-1">
-                  Description
-                </h3>
-                <p className="text-zinc-300 leading-relaxed">
-                  {pet.description}
-                </p>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-zinc-200">
+                {post.owner?.firstname}
+              </span>
+              <div className="flex items-center gap-1 text-[10px] text-zinc-500">
+                <PhoneIcon /> {post.owner?.phone || "N/A"}
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-zinc-500 uppercase tracking-wider mb-1">
-                    Gender
-                  </h3>
-                  <p className="text-zinc-300">{pet.gender}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-zinc-500 uppercase tracking-wider mb-1">
-                    Species
-                  </h3>
-                  <p className="text-zinc-300">{pet.species}</p>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-zinc-500 uppercase tracking-wider mb-1">
-                  Medical History
-                </h3>
-                <p className="text-zinc-300">{pet.medicalHistory}</p>
-              </div>
-
-              {pet.owner && (
-                <div className="p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
-                  <h3 className="text-sm font-medium text-zinc-500 uppercase tracking-wider mb-1">
-                    Current Owner
-                  </h3>
-                  <p className="text-white font-medium">{pet.owner}</p>
-                </div>
-              )}
             </div>
+          </div>
+          <div className="text-[10px] text-zinc-600 font-mono">
+            {new Date(post.date).toLocaleDateString()}
           </div>
         </div>
       </div>
+
+      {/* --- Action Footer --- */}
+      {post.status === "pending" && (
+        <div className="grid grid-cols-2 divide-x divide-zinc-800 border-t border-zinc-800">
+          <button
+            onClick={() => onReject(post.id)}
+            className="flex items-center justify-center gap-2 py-3 text-sm font-medium text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 transition-colors"
+          >
+            <XIcon /> Reject
+          </button>
+          <button
+            onClick={() => onApprove(post.id)}
+            className="flex items-center justify-center gap-2 py-3 text-sm font-medium text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 transition-colors"
+          >
+            <CheckIcon /> Approve
+          </button>
+        </div>
+      )}
+    </div>
+  );
+});
+
+PostCard.displayName = "PostCard";
+
+// --- Main Component ---
+const ApprovalPost = () => {
+  const dispatch = useDispatch();
+  const { approvalPosts, loading, error } = useSelector((state) => state.posts);
+
+  // --- Filter State ---
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [speciesFilter, setSpeciesFilter] = useState("all");
+
+  // Debounce Logic
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch Logic
+  const fetchFilters = useMemo(() => ({
+    search: debouncedSearch,
+    status: statusFilter,
+    species: speciesFilter,
+  }), [debouncedSearch, statusFilter, speciesFilter]);
+
+  useEffect(() => {
+    dispatch(fetchApprovalPosts(fetchFilters));
+  }, [dispatch, fetchFilters]);
+
+  const handleRefresh = () => {
+    dispatch(fetchApprovalPosts(fetchFilters));
+  };
+
+  const handleApprove = useCallback((postId) => dispatch(approveListing(postId)), [dispatch]);
+  const handleReject = useCallback((postId) => dispatch(rejectListing(postId)), [dispatch]);
+
+  const commonSpecies = ["Dog", "Cat", "Bird", "Rabbit", "Fish", "Other"];
+
+  return (
+    <div className="min-h-screen bg-zinc-950 p-6 md:p-8 text-zinc-100">
+      
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-white">Pet Approvals</h1>
+          <p className="text-sm text-zinc-400 mt-1">Review and manage pet listing requests.</p>
+        </div>
+        
+        <button 
+          onClick={handleRefresh}
+          disabled={loading}
+          className="self-start md:self-auto flex items-center gap-2 px-4 py-2 bg-white text-zinc-900 text-sm font-semibold rounded-lg hover:bg-zinc-200 disabled:opacity-50 transition-all shadow-sm shadow-zinc-900/50"
+        >
+          <span className={`${loading ? "animate-spin" : ""}`}>
+            <RefreshIcon />
+          </span>
+          {loading ? "Syncing..." : "Sync Posts"}
+        </button>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="bg-zinc-900/50 border border-zinc-800 p-1.5 rounded-xl mb-8 flex flex-col md:flex-row gap-2">
+        {/* Search */}
+        <div className="relative flex-1">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <SearchIcon />
+          </div>
+          <input
+            type="text"
+            placeholder="Search by title, owner..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full h-10 pl-10 pr-4 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+          />
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-2">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-10 px-3 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer hover:bg-zinc-800 transition-colors"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+
+          <select
+            value={speciesFilter}
+            onChange={(e) => setSpeciesFilter(e.target.value)}
+            className="h-10 px-3 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer hover:bg-zinc-800 transition-colors"
+          >
+            <option value="all">All Species</option>
+            {commonSpecies.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      </div>
+      
+      {/* Error Banner */}
+      {error && (
+        <div className="p-4 mb-6 bg-red-950/30 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-400 text-sm">
+          <XIcon />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Grid Content */}
+      {loading && !approvalPosts.length ? (
+         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {[1,2,3,4,5,6].map(i => (
+              <div key={i} className="h-[400px] bg-zinc-900/50 rounded-2xl animate-pulse border border-zinc-800"></div>
+            ))}
+         </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+          {approvalPosts && approvalPosts.length > 0 ? (
+            approvalPosts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                onApprove={handleApprove}
+                onReject={handleReject}
+              />
+            ))
+          ) : (
+            <div className="col-span-full py-20 flex flex-col items-center justify-center text-zinc-500 border-2 border-dashed border-zinc-800 rounded-2xl bg-zinc-900/20">
+               <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mb-4">
+                 <SearchIcon />
+               </div>
+               <p className="text-lg font-medium text-zinc-300">No requests found</p>
+               <p className="text-sm">Try adjusting your filters or search terms</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
-// --- Main Component ---
-
-export default function PetsList() {
-  const [pets, setPets] = useState(initialPets);
-  const [view, setView] = useState("grid");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedPet, setSelectedPet] = useState(null);
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "available":
-        return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-      case "adopted":
-        return "bg-blue-500/10 text-blue-400 border-blue-500/20";
-      default:
-        return "bg-zinc-500/10 text-zinc-400 border-zinc-500/20";
-    }
-  };
-
-  const handleDelete = (id) => {
-    if (
-      window.confirm("Are you sure you want to take down this pet listing?")
-    ) {
-      setPets((prev) => prev.filter((pet) => pet.id !== id));
-    }
-  };
-
-  const handleViewDetails = (pet) => {
-    setSelectedPet(pet);
-  };
-
-  const handleEdit = (pet) => {
-    // Placeholder for edit functionality
-    alert(`Edit functionality for ${pet.name} coming soon!`);
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Header Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-2 bg-zinc-900/50 p-1 rounded-lg border border-zinc-800">
-          <button
-            onClick={() => setView("grid")}
-            className={`p-2 rounded-md transition-all duration-200 flex items-center gap-2 ${
-              view === "grid"
-                ? "bg-zinc-800 text-white shadow-sm"
-                : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
-            }`}
-            title="Grid View"
-          >
-            <GridIcon />
-          </button>
-          <button
-            onClick={() => setView("list")}
-            className={`p-2 rounded-md transition-all duration-200 flex items-center gap-2 ${
-              view === "list"
-                ? "bg-zinc-800 text-white shadow-sm"
-                : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
-            }`}
-            title="List View"
-          >
-            <ListIcon />
-          </button>
-        </div>
-        ```
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
-        >
-          <svg
-            className="w-5 h-5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M12 6v12m6-6H6"
-            />
-          </svg>
-          Add New Pet
-        </button>
-      </div>
-
-      {/* Grid View */}
-      {view === "grid" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {pets.map((pet) => (
-            <div
-              key={pet.id}
-              className="group bg-zinc-900/40 border border-zinc-800/50 rounded-2xl overflow-hidden hover:border-zinc-700 transition-all duration-300 flex flex-col"
-            >
-              {/* Image Area */}
-              <div className="aspect-[4/3] w-full relative overflow-hidden bg-zinc-950">
-                <img
-                  src={pet.image}
-                  alt={pet.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute top-3 right-3">
-                  <span
-                    className={`px-3 py-1 text-xs rounded-full font-medium border shadow-sm backdrop-blur-sm ${getStatusColor(
-                      pet.status
-                    )}`}
-                  >
-                    {pet.status.charAt(0).toUpperCase() + pet.status.slice(1)}
-                  </span>
-                </div>
-                {/* Hover Overlay with Quick Action */}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                  <button
-                    onClick={() => handleViewDetails(pet)}
-                    className="px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-full text-white font-medium transition-all transform translate-y-4 group-hover:translate-y-0"
-                  >
-                    View Full Profile
-                  </button>
-                </div>
-              </div>
-
-              {/* Content Area */}
-              <div className="p-5 flex-1 flex flex-col justify-between">
-                <div className="space-y-1 mb-4">
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-bold text-xl text-zinc-100">
-                      {pet.name}
-                    </h3>
-                    <span className="text-zinc-500 text-xs font-mono bg-zinc-800/50 px-2 py-1 rounded">
-                      ID: {pet.id}
-                    </span>
-                  </div>
-                  <p className="text-sm text-zinc-400">
-                    {pet.breed} • {pet.age} yrs • {pet.gender}
-                  </p>
-                  {pet.owner && (
-                    <p className="text-xs text-zinc-500 mt-2 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                      Owner: {pet.owner}
-                    </p>
-                  )}
-                </div>
-
-                {/* Actions Footer */}
-                <div className="pt-4 border-t border-zinc-800/50 flex gap-2">
-                  <button
-                    onClick={() => handleViewDetails(pet)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-sm transition-colors"
-                  >
-                    <EyeIcon /> Details
-                  </button>
-                  <button
-                    onClick={() => handleEdit(pet)}
-                    className="p-2 bg-zinc-800 hover:bg-zinc-700 text-blue-400 rounded-lg transition-colors"
-                    title="Edit Pet"
-                  >
-                    <EditIcon />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(pet.id)}
-                    className="p-2 bg-zinc-800 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-colors"
-                    title="Take Down Listing"
-                  >
-                    <TrashIcon />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* List View */}
-      {view === "list" && (
-        <div className="space-y-3">
-          {pets.map((pet) => (
-            <div
-              key={pet.id}
-              className="group bg-zinc-900/40 border border-zinc-800/50 rounded-xl p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center hover:bg-zinc-900/60 transition-colors"
-            >
-              <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-800">
-                <img
-                  src={pet.image}
-                  alt={pet.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-1">
-                  <h3 className="font-bold text-lg text-zinc-100">
-                    {pet.name}
-                  </h3>
-                  <span
-                    className={`px-2 py-0.5 text-xs rounded-full border ${getStatusColor(
-                      pet.status
-                    )}`}
-                  >
-                    {pet.status}
-                  </span>
-                </div>
-                <p className="text-sm text-zinc-400 truncate">
-                  {pet.breed} • {pet.age} years old • {pet.gender}
-                </p>
-                {pet.owner && (
-                  <p className="text-xs text-zinc-500 mt-0.5">
-                    Owner: {pet.owner}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-800/50">
-                <button
-                  onClick={() => handleViewDetails(pet)}
-                  className="flex-1 sm:flex-none px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium rounded-lg transition-colors"
-                >
-                  View
-                </button>
-                <button
-                  onClick={() => handleEdit(pet)}
-                  className="p-2 text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
-                  title="Edit"
-                >
-                  <EditIcon />
-                </button>
-                <button
-                  onClick={() => handleDelete(pet.id)}
-                  className="p-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                  title="Delete"
-                >
-                  <TrashIcon />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Modals */}
-      <AddPetModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-
-      <PetDetailsModal
-        pet={selectedPet}
-        isOpen={!!selectedPet}
-        onClose={() => setSelectedPet(null)}
-      />
-    </div>
-  );
-}
+export default ApprovalPost;
