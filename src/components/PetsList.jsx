@@ -313,7 +313,7 @@ export default function PetsList() {
 
         {/* --- Stats Row (Optional Visual Upgrade) --- */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <StatCard title="Total Posts" value={pagination?.totalDocs || 0} color="text-white" />
+            <StatCard title="Total Posts" value={pagination?.total || 0} color="text-white" />
             <StatCard title="Active Listings" value={activeCount} color="text-emerald-400" />
             <StatCard title="Pending Review" value={pendingCount} color="text-amber-400" />
             <StatCard title="Current Page" value={pagination?.currentPage || 1} color="text-indigo-400" />

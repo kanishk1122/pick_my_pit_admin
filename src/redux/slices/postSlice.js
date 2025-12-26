@@ -186,7 +186,7 @@ const postSlice = createSlice({
         console.log("Fetched Posts Payload:", action.payload);
         state.loading = false;
         state.allPosts.data = action.payload.data;
-        state.allPosts.pagination = action.payload.pagination;
+        state.allPosts.pagination = action.payload.meta.pagination;
       })
       .addCase(fetchAllPosts.rejected, (state, action) => {
         console.error("Fetch All Posts Error:", action.payload);
