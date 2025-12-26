@@ -16,6 +16,7 @@ import authReducer from "./slices/authSlice";
 import speciesReducer from "./slices/speciesSlice";
 import dashboardReducer from "./slices/dashboardSlice";
 import postReducer from "./slices/postSlice";
+import blogReducer from "./slices/blogSlice";
 
 // 1. Create a root reducer that combines all your slices
 const rootReducer = combineReducers({
@@ -23,6 +24,7 @@ const rootReducer = combineReducers({
   species: speciesReducer,
   dashboard: dashboardReducer,
   posts: postReducer,
+  blogs: blogReducer,
 });
 
 // 2. Configure Persist Settings
@@ -31,7 +33,7 @@ const persistConfig = {
   storage,
   // Whitelist: Only these slices will be saved to localStorage.
   // We include 'posts' (to fix your reload issue) and 'auth' (to keep users logged in).
-  whitelist: ["auth"], 
+  whitelist: ["auth"],
 };
 
 // 3. Wrap the root reducer with persistReducer
