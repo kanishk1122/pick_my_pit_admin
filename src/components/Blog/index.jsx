@@ -11,6 +11,7 @@ import {
 import BlogListView from "./BlogListView";
 import BlogEditorView from "./BlogEditorView";
 import Toast from "@/components/Toast";
+import "./styles.css";
 
 export default function BlogManager() {
   const dispatch = useDispatch();
@@ -29,12 +30,15 @@ export default function BlogManager() {
     dispatch(fetchBlogs({ status: "all" }));
   }, [dispatch]);
 
-  const showToast = useCallback((message, type = "success", duration = 3000) => {
-    setToast({ message, type, id: Date.now() });
-    if (duration > 0) {
-      setTimeout(() => setToast(null), duration);
-    }
-  }, []);
+  const showToast = useCallback(
+    (message, type = "success", duration = 3000) => {
+      setToast({ message, type, id: Date.now() });
+      if (duration > 0) {
+        setTimeout(() => setToast(null), duration);
+      }
+    },
+    []
+  );
 
   const handleCreate = useCallback(() => {
     setCurrentPost(null);
@@ -61,10 +65,7 @@ export default function BlogManager() {
             showToast(`Post deleted successfully`, "success");
           })
           .catch((error) => {
-            showToast(
-              error?.message || "Failed to delete post",
-              "error"
-            );
+            showToast(error?.message || "Failed to delete post", "error");
           });
       }
     },

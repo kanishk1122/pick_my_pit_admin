@@ -1,155 +1,119 @@
-import { useState, useCallback, useEffect } from "react";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { $getSelection, $isRangeSelection, FORMAT_TEXT_COMMAND } from "lexical";
+import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
+import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
+import { ListPlugin } from "@lexical/react/LexicalListPlugin";
+import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
+import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
+import { TRANSFORMERS } from "@lexical/markdown";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
-import {
-  Bold,
-  Italic,
-  Underline,
-  Heading1,
-  Heading2,
-  Quote,
-} from "lucide-react";
-import { twMerge } from "tailwind-merge";
+import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
+import { ListItemNode, ListNode } from "@lexical/list";
+import { CodeHighlightNode, CodeNode } from "@lexical/code";
+import { AutoLinkNode, LinkNode } from "@lexical/link";
+import ToolbarPlugin from "./plugins/ToolbarPlugin";
+import CodeHighlightPlugin from "./plugins/CodeHighlightPlugin";
+import AutoLinkPlugin from "./plugins/AutoLinkPlugin";
+import ListMaxIndentLevelPlugin from "./plugins/ListMaxIndentLevelPlugin";
+import BlogTheme from "./themes/BlogTheme";
 
-// Toolbar Component
-function ToolbarPlugin() {
-  const [editor] = useLexicalComposerContext();
-  const [isBold, setIsBold] = useState(false);
-  const [isItalic, setIsItalic] = useState(false);
-  const [isUnderline, setIsUnderline] = useState(false);
-
-  const updateToolbar = useCallback(() => {
-    const selection = $getSelection();
-    if ($isRangeSelection(selection)) {
-      setIsBold(selection.hasFormat("bold"));
-      setIsItalic(selection.hasFormat("italic"));
-      setIsUnderline(selection.hasFormat("underline"));
-    }
-  }, []);
-
-  useEffect(() => {
-    return editor.registerUpdateListener(({ editorState }) => {
-      editorState.read(() => {
-        updateToolbar();
-      });
-    });
-  }, [editor, updateToolbar]);
-
-  const ToolbarButton = ({ onClick, isActive, icon: Icon, label }) => (
-    <button
-      onClick={(e) => {
-        e.preventDefault();
-        onClick();
-      }}
-      className={twMerge(
-        "p-2 rounded-md transition-colors hover:bg-zinc-700",
-        isActive ? "bg-zinc-700 text-white" : "text-zinc-400"
-      )}
-      title={label}
-      type="button"
-      aria-label={label}
-    >
-      <Icon className="w-4 h-4" />
-    </button>
-  );
-
+function Placeholder() {
   return (
-    <div className="flex items-center gap-1 border-b border-zinc-700 p-2 mb-2 flex-wrap">
-      <ToolbarButton
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
-        isActive={isBold}
-        icon={Bold}
-        label="Bold"
-      />
-      <ToolbarButton
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}
-        isActive={isItalic}
-        icon={Italic}
-        label="Italic"
-      />
-      <ToolbarButton
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}
-        isActive={isUnderline}
-        icon={Underline}
-        label="Underline"
-      />
-      <div className="w-px h-6 bg-zinc-700 mx-1" />
-      <button
-        type="button"
-        className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-md transition-colors"
-        title="Heading 1"
-      >
-        <Heading1 className="w-4 h-4" />
-      </button>
-      <button
-        type="button"
-        className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-md transition-colors"
-        title="Heading 2"
-      >
-        <Heading2 className="w-4 h-4" />
-      </button>
-      <button
-        type="button"
-        className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700 rounded-md transition-colors"
-        title="Quote"
-      >
-        <Quote className="w-4 h-4" />
-      </button>
+    <div className="absolute top-4 left-4 text-zinc-600 pointer-events-none text-sm">
+      Start writing your amazing blog post...
     </div>
   );
 }
 
-// Editor Wrapper
+const EMPTY_CONTENT = {
+  root: {
+    children: [
+      {
+        children: [],
+        direction: "ltr",
+        format: "",
+        indent: 0,
+        type: "paragraph",
+        version: 1,
+      },
+    ],
+    direction: "ltr",
+    format: "",
+    indent: 0,
+    type: "root",
+    version: 1,
+  },
+};
+
+const ensureNonEmptyContent = (content) => {
+  const safe = content && typeof content === "object" ? content : EMPTY_CONTENT;
+  if (
+    safe?.root?.children &&
+    Array.isArray(safe.root.children) &&
+    safe.root.children.length > 0
+  ) {
+    return safe;
+  }
+  return EMPTY_CONTENT;
+};
+
 export default function BlogEditor({ initialContent, onChange }) {
-  const theme = {
-    paragraph: "mb-2 text-zinc-300",
-    text: {
-      bold: "font-bold text-white",
-      italic: "italic",
-      underline: "underline",
+  const editorConfig = {
+    theme: BlogTheme,
+    onError(error) {
+      console.error("Editor error:", error);
     },
+    nodes: [
+      HeadingNode,
+      ListNode,
+      ListItemNode,
+      QuoteNode,
+      CodeNode,
+      CodeHighlightNode,
+      TableNode,
+      TableCellNode,
+      TableRowNode,
+      AutoLinkNode,
+      LinkNode,
+    ],
   };
 
-  const onError = (error) => {
-    console.error("Lexical Error:", error);
-  };
-
-  const initialConfig = {
-    namespace: "BlogEditor",
-    theme,
-    onError,
-    editorState: initialContent ? JSON.stringify(initialContent) : null,
-  };
+  const sanitizedContent = ensureNonEmptyContent(initialContent);
 
   return (
     <div className="border border-zinc-700 rounded-lg bg-zinc-900/50 overflow-hidden focus-within:ring-2 focus-within:ring-zinc-600 transition-all">
-      <LexicalComposer initialConfig={initialConfig}>
+      <LexicalComposer
+        initialConfig={{
+          ...editorConfig,
+          editorState: sanitizedContent
+            ? JSON.stringify(sanitizedContent)
+            : null,
+        }}
+      >
         <ToolbarPlugin />
-        <div className="relative min-h-[300px] p-4">
+        <div className="relative min-h-[400px] p-4">
           <RichTextPlugin
             contentEditable={
-              <ContentEditable className="outline-none min-h-[300px] h-full text-zinc-300" />
+              <ContentEditable className="outline-none min-h-[400px] text-zinc-200 text-base leading-relaxed" />
             }
-            placeholder={
-              <div className="absolute top-4 left-4 text-zinc-600 pointer-events-none">
-                Start writing your amazing story...
-              </div>
-            }
-            ErrorBoundary={() => (
-              <div className="text-red-400 text-sm p-4">
-                An error occurred while rendering the editor.
-              </div>
-            )}
+            placeholder={<Placeholder />}
+            ErrorBoundary={LexicalErrorBoundary}
           />
           <HistoryPlugin />
+          <AutoFocusPlugin />
+          <ListPlugin />
+          <LinkPlugin />
+          <CodeHighlightPlugin />
+          <AutoLinkPlugin />
+          <ListMaxIndentLevelPlugin maxDepth={3} />
+          <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
           <OnChangePlugin
             onChange={(editorState) => {
-              onChange(editorState.toJSON());
+              const json = editorState.toJSON();
+              onChange(ensureNonEmptyContent(json));
             }}
           />
         </div>
