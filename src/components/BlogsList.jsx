@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback,useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchBlogs,
@@ -42,6 +42,49 @@ import {
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+
+// Minimal non-empty Lexical state to satisfy backend validation and avoid empty root errors
+const EMPTY_CONTENT = {
+  root: {
+    children: [
+      {
+        type: "paragraph",
+        children: [
+          {
+            type: "text",
+            text: "",
+            detail: 0,
+            format: 0,
+            mode: "normal",
+            style: "",
+            version: 1,
+          },
+        ],
+        direction: null,
+        format: "",
+        indent: 0,
+        version: 1,
+      },
+    ],
+    direction: null,
+    format: "",
+    indent: 0,
+    type: "root",
+    version: 1,
+  },
+};
+
+const ensureNonEmptyContent = (content) => {
+  const safe = content && typeof content === "object" ? content : EMPTY_CONTENT;
+  if (
+    safe?.root?.children &&
+    Array.isArray(safe.root.children) &&
+    safe.root.children.length > 0
+  ) {
+    return safe;
+  }
+  return EMPTY_CONTENT;
+};
 
 // --- 1. LEXICAL TOOLBAR COMPONENT ---
 function ToolbarPlugin() {
@@ -139,7 +182,9 @@ const Editor = ({ initialContent, onChange }) => {
     theme,
     onError,
     // IMPORTANT: Set editor state from initialContent
-    editorState: initialContent ? JSON.stringify(initialContent) : null,
+    editorState: initialContent
+      ? JSON.stringify(ensureNonEmptyContent(initialContent))
+      : null,
   };
 
   return (
@@ -162,7 +207,8 @@ const Editor = ({ initialContent, onChange }) => {
           {/* CAPTURE EDITOR STATE AND LIFT IT UP */}
           <OnChangePlugin
             onChange={(editorState) => {
-              onChange(editorState.toJSON());
+              const json = editorState.toJSON();
+              onChange(ensureNonEmptyContent(json));
             }}
           />
         </div>
@@ -181,6 +227,7 @@ export default function BlogManager() {
 
   const [view, setView] = useState("list"); // 'list' | 'editor'
   const [currentPost, setCurrentPost] = useState(null);
+  const fileInputRef = useRef(null);
 
   // Fetch posts on component mount
   useEffect(() => {
@@ -192,7 +239,7 @@ export default function BlogManager() {
     title: "",
     category: "General",
     coverImage: "",
-    content: null, // Will hold Lexical JSON state
+    content: EMPTY_CONTENT, // Will hold Lexical JSON state
     status: "draft",
   });
 
@@ -202,7 +249,7 @@ export default function BlogManager() {
       title: post.title,
       category: post.category,
       coverImage: post.coverImage || "",
-      content: post.content, // Load existing Lexical content
+      content: ensureNonEmptyContent(post.content), // Load existing Lexical content
       status: post.status,
     });
     setView("editor");
@@ -214,13 +261,21 @@ export default function BlogManager() {
       title: "",
       category: "General",
       coverImage: "",
-      content: null,
+      content: EMPTY_CONTENT,
       status: "draft",
     });
     setView("editor");
   };
 
   const handleSave = () => {
+    if (!formData.title?.trim()) {
+      alert("Title is required");
+      return;
+    }
+    if (!formData.content) {
+      alert("Content is required");
+      return;
+    }
     if (currentPost) {
       // Update existing
       dispatch(updateBlog({ id: currentPost._id, ...formData }));
@@ -235,6 +290,25 @@ export default function BlogManager() {
     if (confirm("Are you sure you want to delete this post?")) {
       dispatch(deleteBlog(id));
     }
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result;
+        if (typeof base64 === "string") {
+          setFormData({ ...formData, coverImage: base64 });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageUrlPaste = (e) => {
+    const url = e.target.value;
+    setFormData({ ...formData, coverImage: url });
   };
 
   // --- VIEW: LIST ---
@@ -383,8 +457,20 @@ export default function BlogManager() {
       </div>
 
       <div className="space-y-6 pb-20">
-        {/* Cover Image Uploader Mock */}
-        <div className="group relative w-full h-48 bg-zinc-900 border-2 border-dashed border-zinc-800 rounded-xl overflow-hidden flex flex-col items-center justify-center transition-colors hover:border-zinc-700 hover:bg-zinc-800/50">
+        {/* Cover Image Uploader */}
+        <div
+          className="group relative w-full h-48 bg-zinc-900 border-2 border-dashed border-zinc-800 rounded-xl overflow-hidden flex flex-col items-center justify-center transition-colors hover:border-zinc-700 hover:bg-zinc-800/50 cursor-pointer"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {/* Hidden File Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+
           {formData.coverImage ? (
             <>
               <img
@@ -393,7 +479,10 @@ export default function BlogManager() {
                 alt="Cover"
               />
               <button
-                onClick={() => setFormData({ ...formData, coverImage: "" })}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFormData({ ...formData, coverImage: "" });
+                }}
                 className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full hover:bg-red-500"
               >
                 <X className="w-4 h-4" />
@@ -402,16 +491,16 @@ export default function BlogManager() {
           ) : (
             <div className="text-center p-6">
               <ImageIcon className="w-10 h-10 text-zinc-600 mx-auto mb-2 group-hover:text-zinc-400" />
-              <p className="text-sm text-zinc-500">
-                Click to upload cover image
+              <p className="text-sm text-zinc-500 mb-4">
+                Click to upload cover image or paste URL below
               </p>
               <input
                 type="text"
-                placeholder="Or paste URL here..."
-                className="mt-4 w-64 bg-black border border-zinc-700 rounded px-2 py-1 text-xs text-white text-center focus:outline-none focus:border-zinc-500"
-                onChange={(e) =>
-                  setFormData({ ...formData, coverImage: e.target.value })
-                }
+                placeholder="Or paste image URL here..."
+                value={formData.coverImage}
+                onChange={handleImageUrlPaste}
+                onClick={(e) => e.stopPropagation()}
+                className="w-64 bg-black border border-zinc-700 rounded px-3 py-2 text-xs text-white text-center focus:outline-none focus:border-zinc-500"
               />
             </div>
           )}
