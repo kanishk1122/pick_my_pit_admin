@@ -84,81 +84,39 @@ function BlockTypeSelect({ editor, blockType }) {
     editor.update(() => {
       const selection = $getSelection();
       if ($isRangeSelection(selection)) {
-        const nodes = selection.getNodes();
-        nodes.forEach((node) => {
-          if ($isHeadingNode(node) || $isCodeNode(node) || $isListNode(node)) {
-            const newNode = $createParagraphNode();
-            node.replace(newNode);
-          }
-        });
+        $wrapNodes(selection, () => $createParagraphNode());
       }
     });
     setShowDropdown(false);
   };
 
   const formatHeading = (headingSize) => {
-    if (blockType !== headingSize) {
-      editor.update(() => {
-        const selection = $getSelection();
-        if ($isRangeSelection(selection)) {
-          const nodes = selection.getNodes();
-          nodes.forEach((node) => {
-            if (
-              $isHeadingNode(node) ||
-              $isCodeNode(node) ||
-              $isListNode(node)
-            ) {
-              const newNode = $createHeadingNode(headingSize);
-              node.replace(newNode);
-            }
-          });
-        }
-      });
-    }
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        $wrapNodes(selection, () => $createHeadingNode(headingSize));
+      }
+    });
     setShowDropdown(false);
   };
 
   const formatCode = () => {
-    if (blockType !== "code") {
-      editor.update(() => {
-        const selection = $getSelection();
-        if ($isRangeSelection(selection)) {
-          const nodes = selection.getNodes();
-          nodes.forEach((node) => {
-            if (
-              $isCodeNode(node) ||
-              $isHeadingNode(node) ||
-              $isListNode(node)
-            ) {
-              const newNode = $createCodeNode(getDefaultCodeLanguage());
-              node.replace(newNode);
-            }
-          });
-        }
-      });
-    }
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        $wrapNodes(selection, () => $createCodeNode());
+      }
+    });
     setShowDropdown(false);
   };
 
   const formatQuote = () => {
-    if (blockType !== "quote") {
-      editor.update(() => {
-        const selection = $getSelection();
-        if ($isRangeSelection(selection)) {
-          const nodes = selection.getNodes();
-          nodes.forEach((node) => {
-            if (
-              $isHeadingNode(node) ||
-              $isCodeNode(node) ||
-              $isListNode(node)
-            ) {
-              const newNode = $createQuoteNode();
-              node.replace(newNode);
-            }
-          });
-        }
-      });
-    }
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        $wrapNodes(selection, () => $createQuoteNode());
+      }
+    });
     setShowDropdown(false);
   };
 
@@ -241,6 +199,10 @@ export default function ToolbarPlugin() {
           ? anchorNode
           : anchorNode.getTopLevelElementOrThrow();
 
+      // Link active state
+      const parent = anchorNode.getParent();
+      setIsLink(parent != null && $isLinkNode(parent));
+
       if ($isHeadingNode(element)) {
         const tag = element.getTag();
         setBlockType(tag);
@@ -251,6 +213,11 @@ export default function ToolbarPlugin() {
         setBlockType(
           listNode ? (listNode.getListType() === "ol" ? "ol" : "ul") : ""
         );
+      } else if (
+        typeof element.getType === "function" &&
+        element.getType() === "quote"
+      ) {
+        setBlockType("quote");
       } else {
         setBlockType("paragraph");
       }
